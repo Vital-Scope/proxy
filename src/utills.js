@@ -14,7 +14,7 @@ const datasetList = [hypoxiaDir, regularDir];
 export async function getRandomFile(type) {
   const datasetTypePath = datasetList[type];
   const dirs = await getDirContent(datasetTypePath);
-  const randomDir = dirs[Math.floor(Math.random() * dirs.length)];
+  const randomDir = dirs["9"];
 
   const bpmDir = await getDirContent(
     path.join(datasetTypePath, randomDir, "bpm")
@@ -22,7 +22,7 @@ export async function getRandomFile(type) {
   const uterusDir = await getDirContent(
     path.join(datasetTypePath, randomDir, "uterus")
   );
-  const randomIndex = Math.floor(Math.random() * bpmDir.length);
+  const randomIndex = 8;
 
   return [
     path.join(datasetTypePath, randomDir, "bpm", bpmDir[randomIndex]),
@@ -38,19 +38,24 @@ export async function getDirContent(url) {
 export async function startStreaming() {
   try {
     const files = await getRandomFile(0);
-
+  
     files.forEach(async (path, idx) => {
       const stream = createReadStream(path);
       const rl = readline.createInterface({
         input: stream,
       });
+      let linesRead = 0;
 
       for await (const line of rl) {
+        if (linesRead === 0) {
+          linesRead++;
+          continue;
+        }
         const [time, value] = line.split(",");
         sendToMqttTopic({
           Type: idx,
-          Time: time,
-          Value: value,
+          Time: +time,
+          Value: +value,
         });
       }
       rl.close();

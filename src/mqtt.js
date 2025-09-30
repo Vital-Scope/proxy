@@ -5,14 +5,14 @@ dotenv.config();
 
 const mqttHost = process.env.MQTT_HOST || "localhost";
 const mqttPort = process.env.MQTT_PORT || 1883;
-const mqttTopic = process.env.MQTT_TOPIC || "sensor/data";
+const mqttTopic = process.env.MQTT_TOPIC;
 
 export const client = mqtt.connect({
   host: mqttHost,
   port: mqttPort,
   protocol: "mqtt",
   username: "user1",
-  password: "user1"
+  password: "user1",
 });
 
 client.on("connect", () => {
@@ -33,5 +33,15 @@ client.on("reconnect", () => {
 
 export function sendToMqttTopic(data) {
   const msg = JSON.stringify(data);
-  client.publishAsync(mqttTopic, msg).catch(err => console.error(err));
+  client.publish(
+    mqttTopic,
+    msg,
+    {
+      qos: 1,
+      retain: true,
+    },
+    e => {
+      if (e) console.log(e);
+    }
+  );
 }
