@@ -11,16 +11,16 @@ RUN npm ci --omit=dev
 COPY . .
 
 # Каталог для датасета монтируем томом (не копируем внутрь образа)
-#VOLUME ["/app/dataset"]
+VOLUME ["/app/proxy"]
 
 # Каталог для выходных файлов, куда пишет `DIR_PATH`
-RUN mkdir -p /app/output
+RUN mkdir -p /app/proxy
 
 # Базовые значения; переопределяйте при запуске
-ENV PORT=3000 \
-    DIR_PATH=output
+ENV PORT=3000 
+  #  DIR_PATH=output
 
 EXPOSE 3000
 
-USER node
+USER root
 CMD ["npm", "start"]
