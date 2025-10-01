@@ -22,5 +22,5 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-USER node
+USER root
 CMD ["npm", "start"]
