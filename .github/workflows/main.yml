@@ -41,4 +41,4 @@ jobs:
           docker rm proxy-service || true
           docker rmi rhammatov/vital_scope_proxy || true
           docker pull rhammatov/vital_scope_proxy || true
-          docker run -d -ti --name proxy-service -p 8081:3000 -v /proxy/check:/proxy/check rhammatov/vital_scope_proxy:latest
+          docker run -d -ti --name proxy-service -p 8081:3000 -v /proxy:/app/proxy rhammatov/vital_scope_proxy:latest
