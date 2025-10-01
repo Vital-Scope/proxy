@@ -6,10 +6,12 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-COPY src ./src
+#COPY src ./src
+
+COPY . .
 
 # Каталог для датасета монтируем томом (не копируем внутрь образа)
-VOLUME ["/app/dataset"]
+#VOLUME ["/app/dataset"]
 
 # Каталог для выходных файлов, куда пишет `DIR_PATH`
 RUN mkdir -p /app/output
