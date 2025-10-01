@@ -33,6 +33,7 @@ client.on("reconnect", () => {
 
 export function sendToMqttTopic(data) {
   const msg = JSON.stringify(data);
+  console.log(msg);
   client.publish(
     mqttTopic,
     msg,

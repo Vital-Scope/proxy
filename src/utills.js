@@ -14,7 +14,7 @@ const datasetList = [hypoxiaDir, regularDir];
 export async function getRandomFile(type) {
   const datasetTypePath = datasetList[type];
   const dirs = await getDirContent(datasetTypePath);
-  const randomDir = dirs["9"];
+  const randomDir = dirs[Math.floor(Math.random() * dirs.length)];
 
   const bpmDir = await getDirContent(
     path.join(datasetTypePath, randomDir, "bpm")
@@ -22,7 +22,7 @@ export async function getRandomFile(type) {
   const uterusDir = await getDirContent(
     path.join(datasetTypePath, randomDir, "uterus")
   );
-  const randomIndex = 8;
+  const randomIndex = Math.floor(Math.random() * bpmDir.length);
 
   return [
     path.join(datasetTypePath, randomDir, "bpm", bpmDir[randomIndex]),
@@ -35,32 +35,57 @@ export async function getDirContent(url) {
   return files;
 }
 
-export async function startStreaming() {
+export async function startStreaming(id) {
+  const io_arrs = [];
   try {
     const files = await getRandomFile(0);
-  
-    files.forEach(async (path, idx) => {
-      const stream = createReadStream(path);
+    const uniqueKey = id;
+    const baseDir = path.join(process.cwd(), process.env.DIR_PATH, uniqueKey);
+    const bpmDir = path.join(baseDir, "bpm");
+    const uterusDir = path.join(baseDir, "uterus");
+
+    await fs.mkdir(baseDir, { recursive: true });
+    await fs.mkdir(bpmDir, { recursive: true });
+    await fs.mkdir(uterusDir, { recursive: true });
+
+    // Копируем files[0] в bpm, files[1] в uterus с оригинальными именами
+    const bpmFileName = path.basename(files[0]);
+    const uterusFileName = path.basename(files[1]);
+    await fs.copyFile(files[0], path.join(bpmDir, bpmFileName));
+    await fs.copyFile(files[1], path.join(uterusDir, uterusFileName));
+
+    files.forEach(async (filePath, idx) => {
+      const stream = createReadStream(filePath);
+      io_arrs.push(stream);
       const rl = readline.createInterface({
         input: stream,
       });
       let linesRead = 0;
-
+      let prev = 0;
       for await (const line of rl) {
         if (linesRead === 0) {
           linesRead++;
           continue;
         }
         const [time, value] = line.split(",");
+        if (Math.trunc(+time) === prev) {
+          continue;
+        }
+        prev = Math.trunc(+time)
+        await new Promise(resolve => setTimeout(resolve, 1000));
         sendToMqttTopic({
           Type: idx,
-          Time: +time,
+          Time: Math.trunc(+time),
           Value: +value,
         });
       }
       rl.close();
+      stream.close();
     });
   } catch (error) {
+    io_arrs.forEach(io => {
+      io.close();
+    });
     console.error(error);
   }
 }
