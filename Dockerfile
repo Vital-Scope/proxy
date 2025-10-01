@@ -17,8 +17,8 @@ COPY . .
 RUN mkdir -p /app/output
 
 # Базовые значения; переопределяйте при запуске
-ENV PORT=3000 \
-    DIR_PATH=output
+ENV PORT=3000 
+  #  DIR_PATH=output
 
 EXPOSE 3000
 
