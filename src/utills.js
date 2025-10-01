@@ -11,6 +11,8 @@ const hypoxiaDir = path.join(process.cwd(), "dataset/hypoxia");
 const regularDir = path.join(process.cwd(), "dataset/regular");
 const datasetList = [hypoxiaDir, regularDir];
 
+const activeStreams = new Map();
+
 export async function getRandomFile(type) {
   const datasetTypePath = datasetList[type];
   const dirs = await getDirContent(datasetTypePath);
@@ -36,7 +38,28 @@ export async function getDirContent(url) {
 }
 
 export async function startStreaming(id) {
-  const io_arrs = [];
+  if (activeStreams.has(id)) {
+    stopStreaming(id);
+  }
+
+  const streams = [];
+  const timeouts = [];
+  let isStopped = false;
+
+  activeStreams.set(id, {
+    stop: () => {
+      isStopped = true;
+      timeouts.forEach(clearTimeout);
+      streams.forEach(stream => {
+        if (stream && typeof stream.close === 'function') {
+          stream.close();
+        }
+      });
+      activeStreams.delete(id);
+      console.log(`Stream ${id} stopped`);
+    }
+  });
+
   try {
     const files = await getRandomFile(0);
     const uniqueKey = id;
@@ -54,38 +77,76 @@ export async function startStreaming(id) {
     await fs.copyFile(files[0], path.join(bpmDir, bpmFileName));
     await fs.copyFile(files[1], path.join(uterusDir, uterusFileName));
 
-    files.forEach(async (filePath, idx) => {
+    for (let idx = 0; idx < files.length; idx++) {
+      if (isStopped) break;
+      
+      const filePath = files[idx];
       const stream = createReadStream(filePath);
-      io_arrs.push(stream);
+      streams.push(stream);
+      
       const rl = readline.createInterface({
         input: stream,
       });
+      
       let linesRead = 0;
       let prev = 0;
+      
       for await (const line of rl) {
+        if (isStopped) break;
+        
         if (linesRead === 0) {
           linesRead++;
           continue;
         }
+        
         const [time, value] = line.split(",");
         if (Math.trunc(+time) === prev) {
           continue;
         }
-        prev = Math.trunc(+time)
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        sendToMqttTopic({
-          Type: idx,
-          Time: Math.trunc(+time),
-          Value: +value,
+        prev = Math.trunc(+time);
+        
+        await new Promise((resolve) => {
+          if (isStopped) {
+            resolve();
+            return;
+          }
+          
+          const timeoutId = setTimeout(() => {
+            if (!isStopped) {
+              sendToMqttTopic({
+                Type: idx,
+                Time: Math.trunc(+time),
+                Value: +value,
+              });
+            }
+            resolve();
+          }, 1000);
+          
+          timeouts.push(timeoutId);
         });
       }
+      
       rl.close();
       stream.close();
-    });
+    }
   } catch (error) {
-    io_arrs.forEach(io => {
-      io.close();
-    });
     console.error(error);
+  } finally {
+    timeouts.forEach(clearTimeout);
+    streams.forEach(stream => {
+      if (stream && typeof stream.close === 'function') {
+        stream.close();
+      }
+    });
+    activeStreams.delete(id);
+  }
+}
+
+export function stopStreaming(id) {
+  const streamController = activeStreams.get(id);
+  if (streamController) {
+    streamController.stop();
+  } else {
+    console.log(`No active stream found for id: ${id}`);
   }
 }

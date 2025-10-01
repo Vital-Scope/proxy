@@ -1,7 +1,7 @@
 
 import express from "express";
 import cors from "cors";
-import { startStreaming } from "./utills.js";
+import { startStreaming, stopStreaming } from "./utills.js";
 
 const PORT = +process.env.PORT;
 const app = express();
@@ -16,6 +16,14 @@ app.post("/proxy/random", (req, res) => {
   startStreaming(monitoringId);
 });
 
+app.post("/proxy/stop", (req, res) => {
+  const monitoringId = req.body.monitoringId;
+  console.log("Stopping stream for monitoringId:", monitoringId);
+  
+  stopStreaming(monitoringId);
+  res.status(200).json({ success: true, message: "Stream stopped" });
+});
+
 app.get("/proxy/health-proxy", (req, res) => {
   res.status(200).json(true);
 });
@@ -27,4 +35,5 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Access the random endpoint at: http://localhost:${PORT}/proxy/random`);
+  console.log(`Access the stop endpoint at: http://localhost:${PORT}/proxy/stop`);
 });
